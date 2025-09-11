@@ -4,7 +4,7 @@ name: Construir y Publicar Imagen Docker
 # Disparador (Trigger): Este workflow se ejecutará en cada 'push' a la rama 'main'
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Se dispara en cada push a la rama 'main'
 
 # Trabajos (Jobs): Define las tareas que se van a ejecutar.
 jobs:
@@ -20,8 +20,12 @@ jobs:
     # Pasos (Steps) que se ejecutarán secuencialmente
     steps:
       # 1. Clona tu repositorio en la máquina virtual
+      # 'fetch-depth: 0' asegura que se obtenga el historial de Git completo,
+      # lo cual puede ser necesario para la acción de metadatos en escenarios más complejos
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Obtiene todo el historial de Git para que metadata-action funcione correctamente
 
       # 2. Inicia sesión en el Registro de Contenedores de GitHub (GHCR)
       # Usa un GITHUB_TOKEN que GitHub genera automáticamente para mayor seguridad
@@ -33,15 +37,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 3. Extrae metadatos (como las etiquetas de la imagen)
-      # Esto crea etiquetas útiles automáticamente, como una para el commit específico y 'latest'
+      # Configura cómo se generarán las etiquetas para tu imagen Docker
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/mi-pagina-web
+          images: ghcr.io/${{ github.repository_owner }}/mi-pagina-web # Prefijo de la imagen
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }} # 'latest' solo para pushes a la rama 'main'
+            type=ref,event=branch # Etiqueta con el nombre de la rama (ej. 'main')
+            type=sha,prefix=sha-,format=short # Etiqueta con el SHA corto del commit (ej. 'sha-abcdefg')
+          labels: |
+            # Los labels son metadatos adicionales en la imagen, útiles para información de origen y versión
+            org.opencontainers.image.title=${{ github.repository }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.url=${{ github.event.repository.url }}
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
 
       # 4. Construye la imagen de Docker y la sube (push) al registro
-      # Usa las etiquetas generadas en el paso anterior
+      # Usa las etiquetas y labels generadas en el paso anterior
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
