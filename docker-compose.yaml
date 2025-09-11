@@ -1,7 +1,7 @@
 services:
   mi-web:
     # Apunta a la etiqueta 'latest', que se actualiza en cada push a 'main'
-    image: ghcr.io/kamnibal/mi-pagina-web:main
+    image: ghcr.io/kamnibal/mi-pagina-web:latest
     
     container_name: mi-pagina-web-container
 
